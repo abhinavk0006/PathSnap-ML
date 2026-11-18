@@ -1,0 +1,45 @@
+# PathSnap configuration. Everything that affects results lives here so runs are reproducible.
+seed: 42
+# CRS: each trip is projected to the UTM zone of its own centroid (see common.utm_epsg). The dataset is global
+# (UTM zones 14-53), so a single fixed projection would be wrong for most trips.
+
+paths:
+  raw_root: data/raw                 # contains train/ and student_test/
+  train_dir: train
+  student_dir: student_test
+  evaluator_dir: data/evaluator      # reserved trips, only ever read by the API server (never used in training)
+  processed: data/processed
+  results: results
+  models: models
+
+candidates:
+  radius_m: 60               # search radius around each GPS fix
+  max_k: 12                  # keep the K nearest arcs per observation
+  fallback_radius_m: 500     # if nothing inside radius_m, take the single nearest arc within this distance
+
+features:
+  heading_span: 2            # heading estimated from fixes i-2 .. i+2
+  long_heading_min_disp_m: 15  # long-baseline heading: nearest fix at least this far behind / ahead
+  moving_threshold_m: 6      # displacement over the span below which the vehicle counts as stationary
+  lags: [1, 2, 4]
+
+alignment:
+  max_cost_m: 60             # distance cap used when aligning GPS fixes to the reference route
+
+cv:
+  n_splits: 5                # GroupKFold, groups = trips
+
+hmm:                         # defaults, overwritten by the tuned values in models/hmm_config.json
+  beta_m: 15.0
+  emission_weight: 1.0
+  gap_penalty: 12.0
+  uturn_penalty: 4.0
+  back_penalty: 1.0
+  ratio: 2.5
+  base_m: 150.0
+  corridor_m: 400.0
+  max_gap_s: 10
+
+quality:                     # label-quality filter, applied to TRAINING data only (documented in the report)
+  max_trip_median_ref_dist_m: 30   # drop trips whose reference route does not follow the GPS track
+  max_fix_ref_dist_m: 60           # drop individual fixes lying > this from their aligned reference arc

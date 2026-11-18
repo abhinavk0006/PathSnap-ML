@@ -107,3 +107,34 @@ def list_trips(split_dir: str | os.PathLike) -> list[Path]:
 
 
 # --------------------------------------------------------------------------- road network
+@dataclass
+class Network:
+    N: np.ndarray       # projected node coords (n_nodes, 2)
+    frm: np.ndarray
+    to: np.ndarray
+    A: np.ndarray       # start point of every arc
+    B: np.ndarray       # end point of every arc
+    L: np.ndarray       # arc length (m)
+    bearing: np.ndarray  # arc bearing (math angle, radians)
+    deg_out: np.ndarray  # out-degree per node
+    deg_in: np.ndarray
+    has_rev: np.ndarray  # True if the opposite-direction arc exists
+
+
+def trip_epsg(trip: Trip) -> int:
+    return utm_epsg(trip.lon, trip.lat)
+
+
+def build_network(trip: Trip, epsg: int | None = None) -> Network:
+    epsg = epsg or trip_epsg(trip)
+    N = project(trip.nodes_ll[:, 0], trip.nodes_ll[:, 1], epsg)
+    frm, to = trip.arcs[:, 0], trip.arcs[:, 1]
+    A, B = N[frm], N[to]
+    d = B - A
+    L = np.linalg.norm(d, axis=1)
+    n = len(N)
+    deg_out = np.bincount(frm, minlength=n)
+    deg_in = np.bincount(to, minlength=n)
+    keys = frm.astype(np.int64) * n + to
+    has_rev = np.isin(to.astype(np.int64) * n + frm, keys)
+    return Network(N, frm, to, A, B, L, np.arctan2(d[:, 1], d[:, 0]), deg_out, deg_in, has_rev)

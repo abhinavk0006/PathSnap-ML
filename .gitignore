@@ -1,0 +1,20 @@
+# raw dataset and large derived tables are not committed (see README: place the data under data/raw/)
+data/raw
+data/raw/
+data/evaluator/
+data/processed/
+*.parquet
+logs/
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+.env
+*.pem
+*.key
+
+# Local environments and credentials
+.venv/
+venv/
+.env.*
+*.p12
+*.pfx

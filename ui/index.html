@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>PathSnap evaluator UI</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="vendor/leaflet.css">
+<style>
+  :root { --bg:#f4f6f9; --card:#fff; --ink:#1d2733; --muted:#6a7787; --blue:#1f5fbf; --red:#d6281e; --green:#2e9e44; --line:#dde3ea; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; background:var(--bg); color:var(--ink); }
+  header { background:#16212e; color:#fff; padding:12px 20px; display:flex; align-items:center; gap:16px; flex-wrap:wrap; }
+  header h1 { font-size:18px; margin:0; font-weight:600; }
+  header .api { margin-left:auto; display:flex; gap:8px; align-items:center; font-size:13px; }
+  header input { padding:6px 8px; border-radius:6px; border:1px solid #3b4a5c; background:#0f1822; color:#fff; width:260px; }
+  main { display:grid; grid-template-columns: 330px 1fr; gap:14px; padding:14px; height: calc(100vh - 58px); }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:12px; }
+  #side { overflow:auto; display:flex; flex-direction:column; gap:12px; }
+  h2 { font-size:14px; margin:0 0 8px; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); }
+  #trips { display:grid; grid-template-columns: repeat(2, 1fr); gap:6px; }
+  .trip { padding:8px; border:1px solid var(--line); border-radius:8px; background:#fafbfd; cursor:pointer; font-family:ui-monospace, monospace; font-size:13px; text-align:center; }
+  .trip:hover { border-color:var(--blue); } .trip.active { background:var(--blue); color:#fff; border-color:var(--blue); }
+  button { padding:8px 12px; border-radius:8px; border:0; background:var(--blue); color:#fff; font-weight:600; cursor:pointer; }
+  button:disabled { background:#9db4d8; cursor:wait; }
+  .kpis { display:grid; grid-template-columns: 1fr 1fr; gap:8px; }
+  .kpi { border:1px solid var(--line); border-radius:8px; padding:8px; }
+  .kpi b { display:block; font-size:22px; } .kpi span { font-size:12px; color:var(--muted); }
+  table { width:100%; border-collapse:collapse; font-size:13px; } td, th { padding:4px 6px; border-bottom:1px solid var(--line); text-align:right; }
+  td:first-child, th:first-child { text-align:left; } .delta-pos { color:var(--green); font-weight:600; } .delta-neg { color:var(--red); font-weight:600; }
+  #map { border-radius:10px; border:1px solid var(--line); background:#e8edf2; min-height:420px; }
+  #status { font-size:13px; color:var(--muted); min-height:18px; }
+  .legend { font-size:12px; line-height:1.7; } .sw { display:inline-block; width:18px; height:4px; vertical-align:middle; margin-right:6px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>PathSnap &mdash; map-matching evaluator</h1>
+  <div class="api">API URL <input id="api" value=""><button id="connect" style="padding:6px 10px">Connect</button></div>
+</header>
+<main>
+  <div id="side">
+    <div class="card"><h2>Evaluation trips</h2><div id="trips"><span style="color:var(--muted)">connect to the API first</span></div>
+      <div style="margin-top:10px;display:flex;gap:8px;align-items:center"><button id="run" disabled>Run selected trip</button><span id="status"></span></div></div>
+    <div class="card" id="results" style="display:none">
+      <h2>Result &mdash; <span id="tname"></span></h2>
+      <div class="kpis">
+        <div class="kpi"><b id="k_top1">-</b><span>Top-1 accuracy (classifier + HMM)</span></div>
+        <div class="kpi"><b id="k_clf">-</b><span>Top-1 accuracy (classifier only)</span></div>
+        <div class="kpi"><b id="k_cont">-</b><span>Route continuity (h=3)</span></div>
+        <div class="kpi"><b id="k_f1">-</b><span>Route arc-set F1</span></div>
+      </div>
+      <table style="margin-top:10px"><thead><tr><th>Metric</th><th>Classifier</th><th>+ HMM</th><th>&Delta;</th></tr></thead><tbody id="mtable"></tbody></table>
+      <p id="meta" style="font-size:12px;color:var(--muted);margin:8px 0 0"></p>
+    </div>
+    <div class="card legend"><h2>Map legend</h2>
+      <div><span class="sw" style="background:var(--blue)"></span>raw GPS fixes (input)</div>
+      <div><span class="sw" style="background:var(--red);height:5px"></span>predicted route (classifier + HMM/Viterbi)</div>
+      <div style="color:var(--muted)">The reference route stays on the server and is never sent to this UI.</div></div>
+  </div>
+  <div id="map"></div>
+</main>
+<script src="vendor/leaflet.js"></script>
+<script src="config.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+const defaultApi = (window.PATHSNAP_CONFIG && window.PATHSNAP_CONFIG.apiUrl) || (location.protocol.startsWith("http") ? location.protocol + "//" + location.hostname + ":8000" : "http://localhost:8000");
+$("api").value = localStorage.getItem("pathsnap_api") || defaultApi;
+const map = L.map("map").setView([50, 8.6], 12);
+L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {maxZoom: 19, attribution: "&copy; OpenStreetMap contributors"}).addTo(map);
+let layers = L.layerGroup().addTo(map), selected = null;
+const api = () => $("api").value.replace(/\/+$/, "");
+const pct = v => (100 * v).toFixed(2) + "%";
+
+async function connect() {
+  localStorage.setItem("pathsnap_api", $("api").value);
+  $("status").textContent = "connecting...";
+  try {
+    const r = await (await fetch(api() + "/trips")).json();
+    $("trips").innerHTML = "";
+    r.trips.forEach(id => { const d = document.createElement("div"); d.className = "trip"; d.textContent = id;
+      d.onclick = () => { selected = id; document.querySelectorAll(".trip").forEach(x => x.classList.remove("active")); d.classList.add("active"); $("run").disabled = false; };
+      $("trips").appendChild(d); });
+    $("status").textContent = r.count + " trips available";
+  } catch (e) { $("status").textContent = "cannot reach API: " + e; }
+}
+async function run() {
+  if (!selected) return;
+  $("run").disabled = true; $("status").textContent = "running pipeline on the API server...";
+  const t0 = performance.now();
+  try {
+    const resp = await fetch(api() + "/predict", {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({trip_id: selected})});
+    if (!resp.ok) throw new Error((await resp.json()).detail || resp.status);
+    show(await resp.json(), (performance.now() - t0) / 1000);
+  } catch (e) { $("status").textContent = "error: " + e.message; }
+  $("run").disabled = false;
+}
+function show(d, secs) {
+  const h = d.metrics.classifier_plus_hmm, c = d.metrics.classifier_only;
+  layers.clearLayers();
+  d.gps.forEach(p => L.circleMarker(p, {radius: 3, color: "#1f5fbf", weight: 0, fillOpacity: .9}).addTo(layers));
+  L.polyline(d.predicted_route, {color: "#d6281e", weight: 3, opacity: .95}).addTo(layers);
+  const b = L.latLngBounds(d.gps); map.fitBounds(b.pad(0.1));
+  $("results").style.display = "block"; $("tname").textContent = "trip " + d.trip_id;
+  $("k_top1").textContent = pct(h.top1_acc); $("k_clf").textContent = pct(c.top1_acc);
+  $("k_cont").textContent = pct(h.route_continuity_h3); $("k_f1").textContent = pct(h.seq_set_f1);
+  const rows = [["Top-1 accuracy", "top1_acc"], ["Observation Macro F1", "obs_macro_f1"], ["Candidate miss rate", "candidate_miss_rate", true],
+    ["Continuity (h=1)", "route_continuity_h1"], ["Continuity (h=3)", "route_continuity_h3"], ["Arc-set precision", "seq_set_precision"],
+    ["Arc-set recall", "seq_set_recall"], ["Arc-set F1", "seq_set_f1"], ["Route LCS ratio", "seq_lcs_ratio"]];
+  $("mtable").innerHTML = rows.map(([n, k, lowGood]) => { const dv = h[k] - c[k]; const good = lowGood ? dv <= 0 : dv >= 0;
+    return `<tr><td>${n}</td><td>${pct(c[k])}</td><td>${pct(h[k])}</td><td class="${good ? "delta-pos" : "delta-neg"}">${dv >= 0 ? "+" : ""}${(100 * dv).toFixed(2)}</td></tr>`; }).join("");
+  $("meta").textContent = `${d.n_fixes} GPS fixes, ${d.n_route_arcs} route arcs | model ${d.model} | pipeline ${d.timing_s.total_s.toFixed(2)} s, round trip ${secs.toFixed(2)} s | disconnected HMM jumps: ${d.hmm_stats.disconnected_jumps}/${d.hmm_stats.transitions}` + (d.gps_downsample_step > 1 ? ` | map shows every ${d.gps_downsample_step}th fix` : "");
+  $("status").textContent = "done";
+}
+$("connect").onclick = connect; $("run").onclick = run; connect();
+</script>
+</body>
+</html>

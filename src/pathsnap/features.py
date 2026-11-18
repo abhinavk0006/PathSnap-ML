@@ -89,3 +89,104 @@ def generate_candidates(P: np.ndarray, net: Network, cfg: dict):
 
 
 # --------------------------------------------------------------------------- features
+def build_features(trip: Trip, cfg: dict, net: Network | None = None):
+    """Compute the candidate/feature table for one trip. Returns (DataFrame, P, net)."""
+    epsg = trip_epsg(trip)
+    net = net or build_network(trip, epsg)
+    P = project(trip.lon, trip.lat, epsg)
+    t = trip.t.astype(float)
+    n = len(P)
+    qi, arc, d, tf = generate_candidates(P, net, cfg)
+    if len(qi) == 0:
+        return pd.DataFrame(columns=["obs", "arc"] + FEATURES), P, net
+    fc = cfg["features"]
+    span = fc["heading_span"]
+
+    # per-fix motion descriptors
+    i0, i1 = np.clip(np.arange(n) - span, 0, n - 1), np.clip(np.arange(n) + span, 0, n - 1)
+    disp = P[i1] - P[i0]
+    dn_ = np.linalg.norm(disp, axis=1)
+    dts = np.maximum(t[i1] - t[i0], 1e-3)
+    heading = np.arctan2(disp[:, 1], disp[:, 0])
+    moving = (dn_ > fc["moving_threshold_m"]).astype(np.float32)
+    speed = dn_ / dts
+    dt_prev = np.r_[0.0, np.diff(t)]
+    dt_next = np.r_[np.diff(t), 0.0]
+    step = np.r_[0.0, np.linalg.norm(np.diff(P, axis=0), axis=1)]  # step[i] = |P[i]-P[i-1]|
+    step_next = np.r_[step[1:], 0.0]
+
+    hb, hf, vb, vf = long_baseline_headings(P, fc.get("long_heading_min_disp_m", 15.0))
+    A, B, L = net.A[arc], net.B[arc], net.L[arc]
+    dh = heading[qi] - net.bearing[arc]
+    dhb, dhf = hb[qi] - net.bearing[arc], hf[qi] - net.bearing[arc]
+    out = {
+        "obs": qi, "arc": arc, "d": d, "t_frac": tf,
+        "end_clamped": ((tf < 0.02) | (tf > 0.98)).astype(np.float32),
+        "dist_to_end": np.minimum(tf, 1 - tf) * L,
+        "arc_len": L,
+        "deg_to_out": net.deg_out[net.to[arc]], "deg_from_in": net.deg_in[net.frm[arc]],
+        "has_rev": net.has_rev[arc].astype(np.float32),
+        "hcos": np.cos(dh) * moving[qi], "hsin": np.sin(dh) * moving[qi],
+        "moving": moving[qi], "speed": speed[qi],
+        "hcos_b": np.cos(dhb) * vb[qi], "hsin_b": np.sin(dhb) * vb[qi], "hb_valid": vb[qi].astype(np.float32),
+        "hcos_f": np.cos(dhf) * vf[qi], "hsin_f": np.sin(dhf) * vf[qi], "hf_valid": vf[qi].astype(np.float32),
+        "dt_prev": dt_prev[qi], "dt_next": dt_next[qi],
+        "step_prev": step[qi], "step_next": step_next[qi],
+    }
+    # context: how well do the neighbouring fixes fit the same arc?
+    nb = {}
+    for lag in fc["lags"]:
+        for name, sign in (("p", -1), ("n", 1)):
+            j = np.clip(qi + sign * lag, 0, n - 1)
+            dj, tj = seg_dist(P[j], A, B)
+            out[f"d{name}{lag}"] = dj
+            nb[(name, lag)] = (dj, tj)
+    out["dwin"] = (d + sum(out[f"d{s}{l}"] for l in (1, 2) for s in "pn")) / 5.0
+    out["dwin_max"] = np.max([d] + [out[f"d{s}{l}"] for l in (1, 2) for s in "pn"], axis=0)
+    tp1, tn1 = nb[("p", 1)][1], nb[("n", 1)][1]
+    out["prog_prev"] = (tf - tp1) * L
+    out["prog_next"] = (tn1 - tf) * L
+    out["prog_ratio_prev"] = out["prog_prev"] / np.maximum(out["step_prev"], 1.0)
+    out["prog_ratio_next"] = out["prog_next"] / np.maximum(out["step_next"], 1.0)
+
+    df = pd.DataFrame(out)
+    g = df.groupby("obs")
+    df["n_cand"] = g["d"].transform("size")
+    df["d_rank"] = g["d"].rank(method="first") - 1
+    df["d_rel"] = df["d"] - g["d"].transform("min")
+    df["dwin_rel"] = df["dwin"] - g["dwin"].transform("min")
+    df = df[["obs", "arc"] + FEATURES].copy()
+    for c in FEATURES:
+        df[c] = df[c].astype(np.float32)
+    df["obs"] = df["obs"].astype(np.int32)
+    df["arc"] = df["arc"].astype(np.int64)
+    return df, P, net
+
+
+# --------------------------------------------------------------------------- labels (training only)
+def align_to_route(P: np.ndarray, net: Network, route: np.ndarray, max_cost: float = 60.0) -> np.ndarray:
+    """Assign every GPS fix a reference arc by monotone alignment of the fixes to the ordered reference route.
+
+    The reference route lists arcs in travel order but does not say which fix lies on which arc. We find the
+    non-decreasing assignment j(i) (index into the route) minimising the summed (capped) distance between each
+    fix and its assigned arc. Dynamic programming, O(n * m).
+    """
+    n, m = len(P), len(route)
+    A, B = net.A[route], net.B[route]
+    cost = np.empty((n, m), dtype=np.float32)
+    for i in range(n):
+        d, _ = seg_dist(np.broadcast_to(P[i], (m, 2)), A, B)
+        cost[i] = np.minimum(d, max_cost)
+    back = np.zeros((n, m), dtype=np.int32)
+    ar = np.arange(m)
+    dp = cost[0].copy()
+    for i in range(1, n):
+        pm = np.minimum.accumulate(dp)
+        idx = np.maximum.accumulate(np.where(dp == pm, ar, 0))
+        back[i] = idx
+        dp = cost[i] + pm
+    j = np.empty(n, dtype=np.int64)
+    j[-1] = int(np.argmin(dp))
+    for i in range(n - 1, 0, -1):
+        j[i - 1] = back[i, j[i]]
+    return route[j]

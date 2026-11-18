@@ -1,0 +1,70 @@
+{
+  "model": "XGBoost",
+  "params": {
+    "n_estimators": 300,
+    "learning_rate": 0.19387883535815825,
+    "max_depth": 7,
+    "min_child_weight": 1.040568166499432,
+    "subsample": 0.8586381050492398,
+    "colsample_bytree": 0.9894706944750346,
+    "reg_lambda": 0.0011795407425861685
+  },
+  "features": [
+    "d",
+    "d_rel",
+    "d_rank",
+    "n_cand",
+    "t_frac",
+    "end_clamped",
+    "dist_to_end",
+    "arc_len",
+    "deg_to_out",
+    "deg_from_in",
+    "has_rev",
+    "hcos",
+    "hsin",
+    "moving",
+    "speed",
+    "dt_prev",
+    "dt_next",
+    "hcos_b",
+    "hsin_b",
+    "hb_valid",
+    "hcos_f",
+    "hsin_f",
+    "hf_valid",
+    "dp1",
+    "dn1",
+    "dp2",
+    "dn2",
+    "dp4",
+    "dn4",
+    "dwin",
+    "dwin_rel",
+    "dwin_max",
+    "prog_prev",
+    "prog_next",
+    "step_prev",
+    "step_next",
+    "prog_ratio_next",
+    "prog_ratio_prev"
+  ],
+  "seed": 42,
+  "candidates": {
+    "radius_m": 60,
+    "max_k": 12,
+    "fallback_radius_m": 500
+  },
+  "features_cfg": {
+    "heading_span": 2,
+    "long_heading_min_disp_m": 15,
+    "moving_threshold_m": 6,
+    "lags": [
+      1,
+      2,
+      4
+    ]
+  },
+  "trained_on": "train partition (quality-filtered)",
+  "rebuilt_by": "04b_refit_final_model.py"
+}

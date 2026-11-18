@@ -1,0 +1,168 @@
+{
+  "summary": {
+    "classifier_only": {
+      "top1_acc": 0.9117954070981211,
+      "top1_acc_given_ref_in_cand": 0.9136073632465224,
+      "candidate_miss_rate": 0.0019832985386221136,
+      "obs_macro_f1": 0.95186189908558,
+      "route_continuity_h1": 0.9613577023498695,
+      "reference_continuity_h1": 0.9851174934725848,
+      "route_continuity_h3": 0.9867885117493472,
+      "reference_continuity_h3": 0.9992167101827676,
+      "seq_set_precision": 0.9187729865208777,
+      "seq_set_recall": 0.9792731820908903,
+      "seq_set_f1": 0.9475955428348308,
+      "seq_lcs_ratio": 0.840524168929847
+    },
+    "hmm_default_params": {
+      "top1_acc": 0.9370041753653444,
+      "top1_acc_given_ref_in_cand": 0.938866227382073,
+      "candidate_miss_rate": 0.0019832985386221136,
+      "obs_macro_f1": 0.9744944305312279,
+      "route_continuity_h1": 0.9818276762402088,
+      "reference_continuity_h1": 0.9851174934725848,
+      "route_continuity_h3": 0.9986945169712794,
+      "reference_continuity_h3": 0.9992167101827676,
+      "seq_set_precision": 0.8574441003896573,
+      "seq_set_recall": 0.9946920769024125,
+      "seq_set_f1": 0.9194277406954949,
+      "seq_lcs_ratio": 0.9076486126315707
+    },
+    "hmm_tuned_params": {
+      "top1_acc": 0.9449895615866388,
+      "top1_acc_given_ref_in_cand": 0.946867482480912,
+      "candidate_miss_rate": 0.0019832985386221136,
+      "obs_macro_f1": 0.9750122438903865,
+      "route_continuity_h1": 0.9830287206266318,
+      "reference_continuity_h1": 0.9851174934725848,
+      "route_continuity_h3": 0.99911227154047,
+      "reference_continuity_h3": 0.9992167101827676,
+      "seq_set_precision": 0.8744836872342431,
+      "seq_set_recall": 0.9944158717214208,
+      "seq_set_f1": 0.9295430184793678,
+      "seq_lcs_ratio": 0.9231683364947372
+    }
+  },
+  "decode_stats": {
+    "default_0": {
+      "disconnected_jumps": 2,
+      "transitions": 2502,
+      "skipped_fixes": 0,
+      "decode_s": 0.7733640670776367
+    },
+    "tuned_0": {
+      "disconnected_jumps": 2,
+      "transitions": 2502,
+      "skipped_fixes": 0,
+      "decode_s": 0.7833046913146973
+    },
+    "default_7": {
+      "disconnected_jumps": 0,
+      "transitions": 1353,
+      "skipped_fixes": 0,
+      "decode_s": 0.4053676128387451
+    },
+    "tuned_7": {
+      "disconnected_jumps": 0,
+      "transitions": 1353,
+      "skipped_fixes": 0,
+      "decode_s": 0.3980851173400879
+    },
+    "default_9": {
+      "disconnected_jumps": 1,
+      "transitions": 1048,
+      "skipped_fixes": 0,
+      "decode_s": 0.3782498836517334
+    },
+    "tuned_9": {
+      "disconnected_jumps": 1,
+      "transitions": 1048,
+      "skipped_fixes": 0,
+      "decode_s": 0.3796823024749756
+    },
+    "default_40": {
+      "disconnected_jumps": 0,
+      "transitions": 2994,
+      "skipped_fixes": 0,
+      "decode_s": 0.9300391674041748
+    },
+    "tuned_40": {
+      "disconnected_jumps": 0,
+      "transitions": 2994,
+      "skipped_fixes": 0,
+      "decode_s": 0.9446730613708496
+    },
+    "default_52": {
+      "disconnected_jumps": 0,
+      "transitions": 261,
+      "skipped_fixes": 0,
+      "decode_s": 0.07922172546386719
+    },
+    "tuned_52": {
+      "disconnected_jumps": 0,
+      "transitions": 261,
+      "skipped_fixes": 0,
+      "decode_s": 0.07882022857666016
+    },
+    "default_56": {
+      "disconnected_jumps": 3,
+      "transitions": 3957,
+      "skipped_fixes": 0,
+      "decode_s": 1.4212782382965088
+    },
+    "tuned_56": {
+      "disconnected_jumps": 1,
+      "transitions": 3957,
+      "skipped_fixes": 0,
+      "decode_s": 1.4535040855407715
+    },
+    "default_65": {
+      "disconnected_jumps": 0,
+      "transitions": 767,
+      "skipped_fixes": 0,
+      "decode_s": 0.2721230983734131
+    },
+    "tuned_65": {
+      "disconnected_jumps": 0,
+      "transitions": 767,
+      "skipped_fixes": 0,
+      "decode_s": 0.28658318519592285
+    },
+    "default_76": {
+      "disconnected_jumps": 1,
+      "transitions": 1485,
+      "skipped_fixes": 0,
+      "decode_s": 0.6208114624023438
+    },
+    "tuned_76": {
+      "disconnected_jumps": 0,
+      "transitions": 1485,
+      "skipped_fixes": 0,
+      "decode_s": 0.6292808055877686
+    },
+    "default_77": {
+      "disconnected_jumps": 0,
+      "transitions": 3910,
+      "skipped_fixes": 0,
+      "decode_s": 1.3907687664031982
+    },
+    "tuned_77": {
+      "disconnected_jumps": 0,
+      "transitions": 3910,
+      "skipped_fixes": 0,
+      "decode_s": 1.4243242740631104
+    },
+    "default_91": {
+      "disconnected_jumps": 0,
+      "transitions": 873,
+      "skipped_fixes": 0,
+      "decode_s": 0.3147435188293457
+    },
+    "tuned_91": {
+      "disconnected_jumps": 0,
+      "transitions": 873,
+      "skipped_fixes": 0,
+      "decode_s": 0.30582094192504883
+    }
+  }
+}

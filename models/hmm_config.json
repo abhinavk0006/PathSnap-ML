@@ -1,0 +1,43 @@
+{
+  "params": {
+    "beta_m": 8.741891569219481,
+    "emission_weight": 0.3714831734763334,
+    "gap_penalty": 25.44319715198495,
+    "uturn_penalty": 5.093204341011907,
+    "back_penalty": 0.20027530699012458,
+    "ratio": 2.5,
+    "base_m": 150.0,
+    "corridor_m": 400.0,
+    "max_gap_s": 10
+  },
+  "tuned_on": "20 training trips (out-of-fold probabilities)",
+  "tuning_trips": [
+    1,
+    6,
+    8,
+    13,
+    14,
+    18,
+    26,
+    31,
+    38,
+    43,
+    45,
+    46,
+    53,
+    62,
+    69,
+    75,
+    79,
+    86,
+    89,
+    99
+  ],
+  "objective": "pooled observation-level Top-1 accuracy",
+  "n_trials": 40,
+  "tuning_set_top1": {
+    "classifier_only": 0.9240316950185626,
+    "hmm_defaults": 0.9402393749653682,
+    "hmm_tuned": 0.9475536100182856
+  }
+}

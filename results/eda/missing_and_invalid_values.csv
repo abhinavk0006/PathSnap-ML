@@ -1,0 +1,3 @@
+split,nan_track,nan_nodes,bad_lonlat,arc_index_out_of_range,route_index_out_of_range,non_increasing_t,duplicate_consecutive_fixes,self_loops
+student_test,0,0,0,0,0,0,0,2
+train,0,0,0,0,0,0,6,22
